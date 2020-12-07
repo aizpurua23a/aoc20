@@ -1,11 +1,36 @@
 from pprint import pprint
 
 
+class BagNode:
+    def __init__(self, name, amount, rules):
+        self.name = name
+        self.amount = amount
+        for rule in rules:
+            if list(rule.keys())[0] == name:
+                self.children = self.make_children_from_rule(rule[name], rules)
+                return
+
+        self.children = []
+        return
+
+    def make_children_from_rule(self, rule, rules):
+        children = []
+        for key in rule:
+            children.append(BagNode(key, rule[key], rules))
+        return children
+
+    def get_bag_amount(self):
+        sum = 0
+        for child in self.children:
+            sum += child.get_bag_amount()
+        return (sum+1) * self.amount
+
+
 class BagRules:
     def __init__(self, filename):
         with open(filename, 'r') as file:
             rules = file.read().split('\n')
-        self.rules = self._get_rules_dict_from_rules(rules)
+        self.rules = self._get_rules_list_from_rules(rules)
 
     def ex_07_01(self):
         valid_bags = [False]*len(self.rules)
@@ -14,21 +39,26 @@ class BagRules:
         valid_bags_running_list = ['shiny gold']
         while new_valid_bags_found:
             initial_valid_bags_count = sum(valid_bags)
-            for key:value in enumerate(self.rules):
-                if any(valid_bag in allowed_bags
+            for index, rule in enumerate(self.rules):
+                if any(valid_bag in list(bag_rules.keys())
                        for valid_bag in valid_bags_running_list
-                       for allowed_bags in rule.keys()):
+                       for bag_rules in rule.values()):
                     valid_bags[index] = True
-                    valid_bags_running_list.append(self.rules.keys()[index])
+                    valid_bags_running_list.append(list(self.rules[index].keys())[0])
             final_valid_bags_count = sum(valid_bags)
             new_valid_bags_found = final_valid_bags_count > initial_valid_bags_count
 
         return valid_bags
 
+    def ex_07_02(self):
+        root = BagNode('shiny gold', 1, self.rules)
+        pprint(root.get_bag_amount()-1)
+        pass
+
 
     @staticmethod
-    def _get_rules_dict_from_rules( rules):
-        rules_dict = {}
+    def _get_rules_list_from_rules(rules):
+        rules_list = []
         for rule in rules:
             bag, contents = rule.split(' contain ')
 
@@ -45,8 +75,8 @@ class BagRules:
                 else:
                     parsed_contents[content[2:-5]] = int(content[0])
 
-            rules_dict[bag] = parsed_contents
-        return rules_dict
+            rules_list.append({bag: parsed_contents})
+        return rules_list
 
 
 def ex_07_01():
@@ -54,5 +84,8 @@ def ex_07_01():
 
 
 if __name__ == '__main__':
-    bg = BagRules('test_input.txt')
-    pprint(bg.ex_07_01())
+    bg = BagRules('test_input2.txt')
+    pprint(sum(bg.ex_07_01()))
+
+    bg2 = BagRules('input.txt')
+    bg2.ex_07_02()
