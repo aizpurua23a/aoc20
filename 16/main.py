@@ -25,12 +25,7 @@ class TicketValidator:
     def get_valid_tickets(self):
         valid_tickets = []
         for nearby_ticket in self.nearby_tickets:
-            is_ticket_valid = True
-            for num in nearby_ticket:
-                valid_num = any(self.field_fulfills_rule(num, rule) for rule in self.rules.values())
-                if not valid_num:
-                    is_ticket_valid = False
-            if is_ticket_valid:
+            if all(any(self.field_fulfills_rule(num, rule) for rule in self.rules.values()) for num in nearby_ticket):
                 valid_tickets.append(nearby_ticket)
         return valid_tickets
 
@@ -70,7 +65,6 @@ class TicketValidator:
         for index, field in enumerate(self.fields):
             if 'departure ' in field:
                 prod *= self.my_ticket[index]
-
         return prod
 
     @staticmethod
