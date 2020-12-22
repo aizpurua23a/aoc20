@@ -1,4 +1,6 @@
 import numpy as np
+from copy import deepcopy
+from pprint import pprint
 
 
 class PuzzleSolver:
@@ -49,7 +51,12 @@ class PuzzleSolver:
         n = len(self.tiles)
         side = int(np.sqrt(n))
 
+
         id, flipped, rotated = self.find_first_corner()
+        image = [[]]
+        image[0].append(self.transform(self.tiles[id]['tile'], flipped, rotated))
+
+        pass
 
 
         #find image size
@@ -58,8 +65,19 @@ class PuzzleSolver:
 
         #fill subsequent rows
 
-    def find_first_corner(self):
+    def transform(self, tile, flip, rotated):
+        new_tile = []
+        for row in tile:
+            if flip:
+                new_tile.append(deepcopy(row[::-1]))
+            else:
+                new_tile.append(deepcopy(row))
 
+        new_tile = self.rotate_tile(new_tile, rotated)
+
+        return new_tile
+
+    def find_first_corner(self):
         matched_edges = [False] * 4
         first_corner_id = None
         for id, tile in self.tiles.items():
@@ -88,9 +106,12 @@ class PuzzleSolver:
     @staticmethod
     def rotate_tile(tile, amount):
         new_tile = {}
+        pprint(tile)
         for i in range(amount):
-            new_tile['tile'] = list(zip(*tile['tile'][::-1]))[::-1]
+            new_tile = list(''.join(list(zip(*tile[::-1]))))[::-1]
             tile = new_tile
+
+        pprint(tile)
 
         return tile
 
@@ -98,7 +119,7 @@ class PuzzleSolver:
 
 if __name__ == '__main__':
     ps = PuzzleSolver('test_input.txt')
-    print(np.prod(list(int(n) for n in ps.find_corner_tiles())))
+    print(ps.build_image())
 
-    ps = PuzzleSolver('input.txt')
-    print(np.prod(list(int(n) for n in ps.find_corner_tiles())))
+    #ps = PuzzleSolver('input.txt')
+    #print(np.prod(list(int(n) for n in ps.find_corner_tiles())))
