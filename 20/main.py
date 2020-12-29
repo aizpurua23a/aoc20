@@ -1,4 +1,5 @@
 import numpy as np
+import regex as re
 from copy import deepcopy
 from pprint import pprint
 
@@ -13,8 +14,8 @@ class PuzzleSolver:
             rows = tile.split('\n')
             id = int(rows[0].split(' ')[1][:-1])
             edges = [  # east, north, west, south
-                ''.join([x[-1] for x in rows[1:]]),
-                rows[1],
+                ''.join([x[-1] for x in rows[:-len(rows):-1]]),
+                rows[1][::-1],
                 ''.join([x[0] for x in rows[1:]]),
                 rows[-1],
             ]
@@ -22,6 +23,8 @@ class PuzzleSolver:
                 "tile": rows[1:],
                 "edges": edges
             }
+
+        self.side = int(np.sqrt(len(self.tiles)))
 
     def find_corner_tiles(self):
         corner_tiles = []
@@ -47,78 +50,98 @@ class PuzzleSolver:
                     return True
         return False
 
-    def build_image(self):
-        n = len(self.tiles)
-        side = int(np.sqrt(n))
 
+    # All of this yanked from: https://github.com/zedrdave/advent_of_code/blob/master/2020/10/__main__.py
 
-        id, flipped, rotated = self.find_first_corner()
-        image = [[]]
-        image[0].append(self.transform(self.tiles[id]['tile'], flipped, rotated))
-
-        pass
-
-
-        #find image size
-        #find corner
-        #fill first row
-
-        #fill subsequent rows
-
-    def transform(self, tile, flip, rotated):
-        new_tile = []
-        for row in tile:
-            if flip:
-                new_tile.append(deepcopy(row[::-1]))
-            else:
-                new_tile.append(deepcopy(row))
-
-        new_tile = self.rotate_tile(new_tile, rotated)
-
-        return new_tile
-
-    def find_first_corner(self):
-        matched_edges = [False] * 4
-        first_corner_id = None
-        for id, tile in self.tiles.items():
-            matched_edges = [False] * 4
-            for index, edge in enumerate(tile.get('edges')):
-                if self.does_edge_match_other_tiles(id, edge):
-                    matched_edges[index] = True
-
-            if sum(matched_edges) == 2:
-                first_corner_id = id
-                break
-
-        edges = self.tiles[first_corner_id]
-
-        if matched_edges == [False, True, True, False]:
-            rotated = 0
-        if matched_edges == [True, True, False, False]:
-            rotated = 1
-        if matched_edges == [True, False, False, True]:
-            rotated = 2
-        if matched_edges == [False, False, True, True]:
-            rotated = 3
-
-        return first_corner_id, False, rotated
+    @classmethod
+    def get_match(cls, pieces, origin_tile, side):
+        for tile in pieces:
+            if tile in cls.transform(origin_tile):
+                continue
+            for transformed_tile in cls.transform(tile):
+                if cls.edge(transformed_tile, (side + 2) % 4) == cls.edge(origin_tile, side):
+                    return transformed_tile
+        return 0
 
     @staticmethod
-    def rotate_tile(tile, amount):
-        new_tile = {}
-        pprint(tile)
-        for i in range(amount):
-            new_tile = list(''.join(list(zip(*tile[::-1]))))[::-1]
-            tile = new_tile
+    def transform(p):
+        for _ in range(4):
+            yield p
+            yield '\n'.join(l[::-1] for l in p.split('\n'))  # flip
+            p = '\n'.join(''.join(l[::-1]) for l in zip(*p.split('\n')))
 
-        pprint(tile)
+    @staticmethod
+    def edge(p, i):
+        return [p[:10],
+                p[9::11],
+                p[-10:],
+                p[0::11]][i]
 
-        return tile
+    def build_image(self):
+        tiles = {}
+        for key, value in self.tiles.items():
+            self.tiles[key]['tile'] = '\n'.join(value['tile'])
+            tiles[key] = self.tiles[key]['tile']
 
+        tiles_list = tiles.values()
+
+        corners = []
+        for id, tile in tiles.items():
+            unmatched_edges = 0
+            for i in range(4):
+                unmatched_edges += not self.get_match(tiles_list, tile, i)
+            if unmatched_edges == 2:
+                corners.append(id)
+
+        corner_tile_id = corners[0]
+
+        corner_tile = next(p for p in self.transform(tiles[corner_tile_id]) if (self.get_match(tiles_list, p, 2) and
+                                                                                self.get_match(tiles_list, p, 3)))
+
+        first_line = self.get_line(tiles_list, corner_tile, 2)
+
+        image = []
+        for tile in first_line:
+            image.append(self.get_line(tiles_list, tile, 3))
+
+        image = '\n'.join(''.join(item[i + 1:i + 9] for item in row[::-1]) for row in image for i in range(11, 99, 11))
+
+        print(image)
+
+        # awesome regex way of finding the monster
+
+        spacing = '[.#\n]{77}'
+        monster = f'#.{spacing+"#....#"*3}##{spacing}.#{"..#"*5}'
+
+        for image_t in self.transform(image):
+            m = len(re.findall(monster, image_t, overlapped=True))
+            if m:
+                print('Part2: ', sum(c == '#' for c in image_t) - 15*m)
+                break
+
+        ##################################################################
+
+        print("\nVisualisation:")
+
+        ##################################################################
+
+
+        monster = '(.)#(.(?:.|\n){77})#(....)##(....)##(....)###((?:.|\n){77}.)#(..)#(..)#(..)#(..)#(..)#'
+        show_monster = r'\1🐸\2🟢\3🟢🟢\4🟢🟢\5🟢🟢🟢\6🟢\7🟢\8🟢\9🟢\10🟢\11🟢'
+
+        showing_monsters = re.sub(monster, show_monster, re.sub(monster, show_monster, image_t))
+        print(showing_monsters.replace('.', '🟦').replace('#', '🟦'))
+        print('Num #:', sum(c == '#' for c in showing_monsters))
+
+    def get_line(self, pieces, p, orient):
+        R = [p]
+        for _ in range(self.side-1):
+            R += [self.get_match(pieces, R[-1], orient)]
+        return R
 
 
 if __name__ == '__main__':
-    ps = PuzzleSolver('test_input.txt')
+    ps = PuzzleSolver('input.txt')
     print(ps.build_image())
 
     #ps = PuzzleSolver('input.txt')
